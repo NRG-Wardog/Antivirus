@@ -27,6 +27,9 @@
 #define NEED_FILE_SIZE 3
 #define SMART_CUT 5
 #define MIDDAL_PRES 3
+#define FILE_PATH_PLACE 1
+#define SIGNATURE_PLACE 2
+
 int checkSignature(char* buffer, int bufferSize, char* signature, int signatureSize);
 void logResult(char* file_path, char* status, char* located);
 void scanFile(char* filePath, char* virusSignature, int signatureSize, int quickScan);
@@ -56,8 +59,8 @@ int main(int argc, char* argv[])
         return 1;
     }
 
-    directoryPath = argv[1];
-    signatureFilePath = argv[2];
+    directoryPath = argv[FILE_PATH_PLACE];
+    signatureFilePath = argv[SIGNATURE_PLACE];
 
     sigFile = fopen(signatureFilePath, READ_BINARY_MODE);
     if (!sigFile) {
@@ -95,10 +98,10 @@ int main(int argc, char* argv[])
 
     fprintf(logFile, "%s", WELCOME);
     
-    fprintf(logFile, "%s\n",argv[1]);
+    fprintf(logFile, "%s\n",argv[FILE_PATH_PLACE]);
     fprintf(logFile, "%s\n",TEMPLATE);
-    fprintf(logFile, "%s\n",argv[2]);
-    printf("%s %s\n%s %s\n", WELCOME, argv[1], TEMPLATE, argv[2]);
+    fprintf(logFile, "%s\n",argv[SIGNATURE_PLACE]);
+    printf("%s %s\n%s %s\n", WELCOME, argv[FILE_PATH_PLACE], TEMPLATE, argv[SIGNATURE_PLACE]);
 
 
     if (quickScan == 0) {
