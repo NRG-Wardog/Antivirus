@@ -1,12 +1,11 @@
 /*********************************
-* Class: MAGSHIMIM C2            *
-* Week:                          *
-* Name:                          *
-* Credits:                       *
+* Name:Dorian                    *
+* Credits: Dorian Salomon        *
 **********************************/
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 #include "dirent.h"
 
@@ -20,8 +19,14 @@
 #define FIRST "(first 20%)"
 #define EMPTY ""
 #define WELCOME "Anti-virus began! Welcome!\n \nFolder to scan:"
-
-
+#define LOG_PATH "AntiVirusLog.txt"
+#define APPEND_MODE "a"
+#define READ_BINARY_MODE "rb"
+#define TRUE 1
+#define FALSE !TRUE
+#define NEED_FILE_SIZE 3
+#define SMART_CUT 5
+#define MIDDAL_PRES 3
 int checkSignature(char* buffer, int bufferSize, char* signature, int signatureSize);
 void logResult(char* file_path, char* status, char* located);
 void scanFile(char* filePath, char* virusSignature, int signatureSize, int quickScan);
@@ -29,29 +34,32 @@ void scanFile(char* filePath, char* virusSignature, int signatureSize, int quick
 
 
 
-int main(int argc, char* argv[]) {
+int main(int argc, char* argv[]) 
+{
+    if (argc != NEED_FILE_SIZE) {
+        printf("Not enough parameters");
+        printf("Usage: %s <directory_path> <signature_file_path>\n", argv[0]);
+        return 1;
+    }
     FILE* sigFile;
-    int signatureSize = 0;
+    int signatureSize = 0, i = 0, quickScan = 0;
     DIR* dir;
     char* virusSignature;
     char* directoryPath;
     char* signatureFilePath;
-    int quickScan = 0;
     struct dirent* entry;
-    int i = 0;
     char filePath[BUFFER_SIZE];
     char tempFilePath[BUFFER_SIZE];
-    FILE* logFile = fopen("AntiVirusLog.txt", "a");
-    if (argc != 3) {
-        printf("Not enough parameters");
-        printf("Usage: %s <directory_path> <signature_file_path>\n", argv[0]);
+    FILE* logFile = fopen(LOG_PATH, APPEND_MODE);
+    if (!logFile) {
+        printf("Failed to open AntiVirusLog file");
         return 1;
     }
 
     directoryPath = argv[1];
     signatureFilePath = argv[2];
 
-    sigFile = fopen(signatureFilePath, "rb");
+    sigFile = fopen(signatureFilePath, READ_BINARY_MODE);
     if (!sigFile) {
         printf("Failed to open signature file");
         return 1;
@@ -126,11 +134,16 @@ input:char* file_path, char* status, char* located
 output:none
 */
 void logResult(char* file_path, char* status, char* located) {
-    FILE* logFile = fopen("AntiVirusLog.txt", "a");
+    FILE* logFile = fopen(LOG_PATH, APPEND_MODE);
     if (logFile) {
         fprintf(logFile, "%s %s %s\n", file_path, status, located);
         printf("%s %s %s\n", file_path, status, located);
         fclose(logFile);
+    }
+    else
+    {
+        printf("Failed to open file");
+        exit(1);
     }
 }
 
@@ -140,13 +153,9 @@ input:char* filePath, char* virusSignature, int signatureSize, int quickScan
 output:none
 */
 void scanFile(char* filePath, char* virusSignature, int signatureSize, int quickScan) {
-    int i = 0;
-    int portionSizeLast = 0;
-    int portionSize = 0;
+    int i = 0,portionSizeLast = 0,portionSize = 0, fileSize = 0, infected = 0;
     char* buffer;
-    int fileSize = 0;
-    FILE* file = fopen(filePath, "rb");
-    int infected = 0;
+    FILE* file = fopen(filePath, READ_BINARY_MODE);//for binary scan
     if (!file) {
         printf("Failed to open file");
         exit(1);
@@ -173,8 +182,8 @@ void scanFile(char* filePath, char* virusSignature, int signatureSize, int quick
     fclose(file);
 
     if (quickScan != 0) {
-        portionSize = fileSize / 5;
-        portionSizeLast = 3 * portionSize;
+        portionSize = fileSize / SMART_CUT;
+        portionSizeLast = MIDDAL_PRES * portionSize;
         if (checkSignature(buffer, portionSize + signatureSize - 1, virusSignature, signatureSize)) {
             infected = 1;
             logResult(filePath, INFECTED, FIRST);
@@ -211,15 +220,20 @@ output:int
 */
 int checkSignature(char* buffer, int bufferSize, char* signature, int signatureSize) {
     int i = 0, j = 0;
-    for (i = 0; i <= bufferSize - signatureSize; i++) {
-        for (j = 0; j < signatureSize; j++) {
-            if (buffer[i + j] != signature[j]) {
-                break;
+    bool flag = false;
+    for (i = 0; i <= bufferSize - signatureSize; i++) 
+    {
+        flag = false;
+        for (j = 0; j < signatureSize&&!flag ; j++) 
+        {
+            if (buffer[i + j] != signature[j]) 
+            {
+                flag = true;
             }
         }
         if (j == signatureSize) {
-            return 1;
+            return TRUE;
         }
     }
-    return 0;
+    return FALSE;
 }
