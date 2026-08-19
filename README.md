@@ -1,61 +1,90 @@
-# AntiVirus Project
+# AntiVirus
 
-## Overview
-The **AntiVirus Project** is a simple command-line antivirus scanner designed to detect files infected with known virus signatures. It scans directories for potentially harmful files by comparing their content against predefined virus signatures.
+**Early C signature-based antivirus scanner — historical systems/security project.**
 
-## Features
-- **Signature-based scanning**: Compares file content with predefined virus signatures.
-- **Normal and Quick Scan modes**: Choose between a full scan or a faster, limited scan.
-- **Logging system**: Records scan results in `AntiVirusLog.txt`.
-- **Directory scanning**: Recursively scans all files in a specified folder.
+This repository contains an earlier C project that explores the basic mechanics behind signature-based malware scanning: recursively walking a directory, reading file contents, searching for a known byte signature, supporting a reduced quick-scan mode, and writing scan results to a log.
 
-## Installation & Compilation
-### Prerequisites
-- A C compiler (e.g., GCC, Clang, or MSVC)
-- Windows operating system (uses `dirent.h` for directory handling)
+It is intentionally kept as a historical project. The security work that followed this project later expanded into the much broader Windows endpoint-protection architecture in [AYDO](https://github.com/NRG-Wardog/Aydo).
 
-### Compilation
-To compile the program, use the following command:
-```sh
-gcc -o antivirus prog.c
+---
+
+## What It Implements
+
+- Recursive directory traversal
+- Signature-based file scanning
+- Full scan mode
+- Quick scan mode
+- Per-file clean/infected result reporting
+- Scan log generation
+- Windows-oriented directory compatibility through the bundled `dirent.h`
+
+This is a learning implementation of a classic antivirus primitive, not a modern production antivirus engine.
+
+---
+
+## Repository Layout
+
+```text
+Antivirus/
+├── antivirus_files/
+│   ├── prog.c              # scanner implementation
+│   ├── dirent.h            # Windows-compatible directory traversal support
+│   ├── KittenVirusSign     # example signature fixture
+│   ├── AntiVirusLog.txt    # example scan output
+│   └── files/              # sample scan fixtures
+├── LICENSE
+└── README.md
 ```
 
-## Usage
-### Running the Scanner
-To scan a directory, run the following command:
-```sh
-./antivirus <directory_path> <signature_file>
-```
-- `<directory_path>`: The path of the directory to scan.
-- `<signature_file>`: A file containing the virus signature to detect.
+---
 
-### Scan Modes
-- **Normal Scan**: Scans the entire file.
-- **Quick Scan**: Analyzes only specific portions of the file for faster results.
+## Build
 
-### Example Output
-```
-Anti-virus began! Welcome!
+From the project directory containing `prog.c`:
 
-Folder to scan: files
-Virus signature: KittenVirusSign
-Scanning option: Normal Scan 
-Results:
-files//kitten_frog.jpg Infected!
-files//kitten_run.jpg Clean
+```bash
+cd antivirus_files
+gcc prog.c -o antivirus
 ```
 
-## Code Structure
-### Main Components
-- **prog.c** – Main antivirus logic, handles file scanning and logging.
-- **dirent.h** – Directory handling for Windows environments.
-- **AntiVirusLog.txt** – Stores scan results.
-- **KittenVirusSign** – Example virus signature file.
+The source was written for a Windows-oriented development environment. Compiler and path adjustments may be required on other platforms.
 
-## Future Improvements
-- Implement heuristic scanning for unknown virus patterns.
-- Add real-time file monitoring.
-- Improve scan performance using multithreading.
+---
+
+## Run
+
+The program prompts for the directory to scan, the signature file, and the scan mode.
+
+Example project fixtures are available under `antivirus_files/files/` with the example signature at `antivirus_files/KittenVirusSign`.
+
+A scan produces console output and writes an `AntiVirusLog.txt` report.
+
+---
+
+## Engineering Concepts Demonstrated
+
+- C file I/O and memory handling
+- Byte-pattern search
+- Recursive filesystem traversal
+- Basic scan-mode optimization
+- Deterministic logging/reporting
+- Early endpoint-security reasoning
+
+---
+
+## Limitations
+
+- Signature matching only; no behavioral, heuristic, reputation, or sandbox analysis
+- No real-time file monitoring
+- No quarantine or remediation pipeline
+- No signed-update mechanism
+- No parallel scanning or production-scale performance engineering
+- Intended as an educational project, not malware protection for real endpoints
+
+For the later evolution of this work, see **[AYDO](https://github.com/NRG-Wardog/Aydo)**, which expands into endpoint services, telemetry, detection pipelines, backend infrastructure, and isolated dynamic analysis.
+
+---
 
 ## License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+
+See [LICENSE](LICENSE).
