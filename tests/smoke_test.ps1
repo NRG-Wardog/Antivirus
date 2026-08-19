@@ -1,3 +1,7 @@
+param(
+    [switch]$EnableAddressSanitizer
+)
+
 $ErrorActionPreference = 'Stop'
 
 $repo = Split-Path -Parent $PSScriptRoot
@@ -19,8 +23,15 @@ try {
 
     $source = Join-Path $repo 'antivirus_files\prog.c'
     $exe = Join-Path $work 'antivirus.exe'
+    $compilerArgs = @('/nologo', '/W4', '/TC')
+    if ($EnableAddressSanitizer) {
+        $compilerArgs += '/fsanitize=address'
+        Write-Host 'Building scanner with MSVC AddressSanitizer enabled.'
+    }
+    $compilerArgs += $source
+    $compilerArgs += "/Fe:$exe"
 
-    cl /nologo /W4 /TC $source /Fe:$exe
+    & cl @compilerArgs
     if ($LASTEXITCODE -ne 0) { throw 'MSVC build failed' }
 
     Push-Location $work
