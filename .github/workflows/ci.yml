@@ -11,8 +11,12 @@ permissions:
 
 jobs:
   scanner-smoke-test:
-    name: MSVC build + recursive scan smoke test
+    name: MSVC scanner validation (${{ matrix.mode }})
     runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [standard, address-sanitizer]
 
     steps:
       - name: Checkout
@@ -25,4 +29,9 @@ jobs:
 
       - name: Build and run deterministic scanner test
         shell: pwsh
-        run: ./tests/smoke_test.ps1
+        run: |
+          if ('${{ matrix.mode }}' -eq 'address-sanitizer') {
+            ./tests/smoke_test.ps1 -EnableAddressSanitizer
+          } else {
+            ./tests/smoke_test.ps1
+          }
