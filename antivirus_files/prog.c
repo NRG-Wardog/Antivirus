@@ -1,8 +1,3 @@
-/*********************************
-* Name:Dorian                    *
-* Credits: Dorian Salomon        *
-**********************************/
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -22,190 +17,229 @@
 #define LOG_PATH "AntiVirusLog.txt"
 #define APPEND_MODE "a"
 #define READ_BINARY_MODE "rb"
-#define TRUE 1
-#define FALSE !TRUE
 #define NEED_FILE_SIZE 3
-#define SMART_CUT 5
-#define MIDDAL_PRES 3
 #define FILE_PATH_PLACE 1
 #define SIGNATURE_PLACE 2
 
-int checkSignature(char* buffer, int bufferSize, char* signature, int signatureSize);
-void logResult(char* file_path, char* status, char* located);
-void scanFile(char* filePath, char* virusSignature, int signatureSize, int quickScan);
+int checkSignature(const char* buffer, size_t bufferSize, const char* signature, size_t signatureSize);
+void logResult(const char* filePath, const char* status, const char* located);
+int scanFile(const char* filePath, const char* virusSignature, size_t signatureSize, int quickScan);
+int scanDirectory(const char* directoryPath, const char* virusSignature, size_t signatureSize, int quickScan);
 
-
-
-
-int main(int argc, char* argv[]) 
+static int joinPath(char* destination, size_t destinationSize, const char* directory, const char* name)
 {
+    int written = snprintf(destination, destinationSize, "%s/%s", directory, name);
+    return written >= 0 && (size_t)written < destinationSize;
+}
+
+int main(int argc, char* argv[])
+{
+    FILE* sigFile = NULL;
+    FILE* logFile = NULL;
+    char* virusSignature = NULL;
+    long signatureSizeLong = 0;
+    size_t signatureSize = 0;
+    int quickScan = 0;
+    int result = 1;
+
     if (argc != NEED_FILE_SIZE) {
-        printf("Not enough parameters");
-        printf("Usage: %s <directory_path> <signature_file_path>\n", argv[0]);
-        return 1;
-    }
-    FILE* sigFile;
-    int signatureSize = 0, i = 0, quickScan = 0;
-    DIR* dir;
-    char* virusSignature;
-    char* directoryPath;
-    char* signatureFilePath;
-    struct dirent* entry;
-    char filePath[BUFFER_SIZE];
-    char tempFilePath[BUFFER_SIZE];
-    FILE* logFile = fopen(LOG_PATH, APPEND_MODE);
-    if (!logFile) {
-        printf("Failed to open AntiVirusLog file");
+        fprintf(stderr, "Usage: %s <directory_path> <signature_file_path>\n", argv[0]);
         return 1;
     }
 
-    directoryPath = argv[FILE_PATH_PLACE];
-    signatureFilePath = argv[SIGNATURE_PLACE];
-
-    sigFile = fopen(signatureFilePath, READ_BINARY_MODE);
+    sigFile = fopen(argv[SIGNATURE_PLACE], READ_BINARY_MODE);
     if (!sigFile) {
-        printf("Failed to open signature file");
-        return 1;
+        fprintf(stderr, "Failed to open signature file\n");
+        goto cleanup;
     }
 
-    fseek(sigFile, 0, SEEK_END);
-    signatureSize = ftell(sigFile);
-    fseek(sigFile, 0, SEEK_SET);
+    if (fseek(sigFile, 0, SEEK_END) != 0) {
+        fprintf(stderr, "Failed to inspect signature file\n");
+        goto cleanup;
+    }
+
+    signatureSizeLong = ftell(sigFile);
+    if (signatureSizeLong <= 0) {
+        fprintf(stderr, "Signature file must not be empty\n");
+        goto cleanup;
+    }
+    signatureSize = (size_t)signatureSizeLong;
+    rewind(sigFile);
 
     virusSignature = (char*)malloc(signatureSize);
     if (!virusSignature) {
-        printf("Failed to allocate memory for virus signature\n");
-        fclose(sigFile);
-        return 1;
+        fprintf(stderr, "Failed to allocate signature buffer\n");
+        goto cleanup;
     }
 
-    for (i = 0; i < signatureSize; i++) {
-        virusSignature[i] = fgetc(sigFile);
+    if (fread(virusSignature, 1, signatureSize, sigFile) != signatureSize) {
+        fprintf(stderr, "Failed to read signature file\n");
+        goto cleanup;
     }
     fclose(sigFile);
+    sigFile = NULL;
 
-    dir = opendir(directoryPath);
-    if (!dir) {
-        printf("Failed to open directory");
-        free(virusSignature);
-        return 1;
+    printf("Press 0 for normal or any other integer for quick scan: ");
+    if (scanf("%d", &quickScan) != 1) {
+        fprintf(stderr, "Invalid scan mode\n");
+        goto cleanup;
     }
-    strcpy(filePath, directoryPath);
-    strcat(filePath, "/");
-    printf("Press 0 for normal or press any other key for quick scan: ");
-    scanf("%d", &quickScan);
-    getchar();
 
-    fprintf(logFile, "%s", WELCOME);
-    
-    fprintf(logFile, "%s\n",argv[FILE_PATH_PLACE]);
-    fprintf(logFile, "%s\n",TEMPLATE);
-    fprintf(logFile, "%s\n",argv[SIGNATURE_PLACE]);
-    printf("%s %s\n%s %s\n", WELCOME, argv[FILE_PATH_PLACE], TEMPLATE, argv[SIGNATURE_PLACE]);
-
-
-    if (quickScan == 0) {
-        fprintf(logFile, "%s", MODE_NORMAL);
-        printf("%s \n", MODE_NORMAL);
+    logFile = fopen(LOG_PATH, "w");
+    if (!logFile) {
+        fprintf(stderr, "Failed to open %s\n", LOG_PATH);
+        goto cleanup;
     }
-    else {
-        fprintf(logFile, "%s", MODE_QUICK);
-        printf("%s \n", MODE_QUICK);
-    }
+
+    fprintf(logFile, "%s%s\n%s%s\n", WELCOME, argv[FILE_PATH_PLACE], TEMPLATE, argv[SIGNATURE_PLACE]);
+    fprintf(logFile, "%s", quickScan == 0 ? MODE_NORMAL : MODE_QUICK);
     fclose(logFile);
+    logFile = NULL;
+
+    printf("%s%s\n%s%s\n", WELCOME, argv[FILE_PATH_PLACE], TEMPLATE, argv[SIGNATURE_PLACE]);
+    printf("%s", quickScan == 0 ? MODE_NORMAL : MODE_QUICK);
+
+    if (!scanDirectory(argv[FILE_PATH_PLACE], virusSignature, signatureSize, quickScan)) {
+        goto cleanup;
+    }
+
+    result = 0;
+
+cleanup:
+    if (sigFile) {
+        fclose(sigFile);
+    }
+    if (logFile) {
+        fclose(logFile);
+    }
+    free(virusSignature);
+    return result;
+}
+
+void logResult(const char* filePath, const char* status, const char* located)
+{
+    FILE* logFile = fopen(LOG_PATH, APPEND_MODE);
+    if (!logFile) {
+        fprintf(stderr, "Failed to open %s\n", LOG_PATH);
+        return;
+    }
+
+    fprintf(logFile, "%s %s %s\n", filePath, status, located);
+    printf("%s %s %s\n", filePath, status, located);
+    fclose(logFile);
+}
+
+int scanDirectory(const char* directoryPath, const char* virusSignature, size_t signatureSize, int quickScan)
+{
+    DIR* dir = opendir(directoryPath);
+    struct dirent* entry;
+
+    if (!dir) {
+        fprintf(stderr, "Failed to open directory: %s\n", directoryPath);
+        return 0;
+    }
 
     while ((entry = readdir(dir)) != NULL) {
-        if (strcmp(entry->d_name, ".") && strcmp(entry->d_name, "..")) {
-            strcpy(tempFilePath, filePath);
-            strcat(tempFilePath, "/");
-            strcat(tempFilePath, entry->d_name);
-            scanFile(tempFilePath, virusSignature, signatureSize, quickScan);
+        char path[BUFFER_SIZE];
+
+        if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
+            continue;
+        }
+
+        if (!joinPath(path, sizeof(path), directoryPath, entry->d_name)) {
+            fprintf(stderr, "Path too long; skipping: %s/%s\n", directoryPath, entry->d_name);
+            continue;
+        }
+
+        if (entry->d_type == DT_DIR) {
+            if (!scanDirectory(path, virusSignature, signatureSize, quickScan)) {
+                closedir(dir);
+                return 0;
+            }
+        } else {
+            if (!scanFile(path, virusSignature, signatureSize, quickScan)) {
+                closedir(dir);
+                return 0;
+            }
         }
     }
 
     closedir(dir);
-    free(virusSignature);
-
-    getchar();
-    return 0;
+    return 1;
 }
 
+int scanFile(const char* filePath, const char* virusSignature, size_t signatureSize, int quickScan)
+{
+    FILE* file = fopen(filePath, READ_BINARY_MODE);
+    char* buffer = NULL;
+    long fileSizeLong;
+    size_t fileSize;
+    int infected = 0;
 
-/*
-func will write the result of the scan
-input:char* file_path, char* status, char* located
-output:none
-*/
-void logResult(char* file_path, char* status, char* located) {
-    FILE* logFile = fopen(LOG_PATH, APPEND_MODE);
-    if (logFile) {
-        fprintf(logFile, "%s %s %s\n", file_path, status, located);
-        printf("%s %s %s\n", file_path, status, located);
-        fclose(logFile);
-    }
-    else
-    {
-        printf("Failed to open file");
-        exit(1);
-    }
-}
-
-/*
-func will scan the file
-input:char* filePath, char* virusSignature, int signatureSize, int quickScan
-output:none
-*/
-void scanFile(char* filePath, char* virusSignature, int signatureSize, int quickScan) {
-    int i = 0,portionSizeLast = 0,portionSize = 0, fileSize = 0, infected = 0;
-    char* buffer;
-    FILE* file = fopen(filePath, READ_BINARY_MODE);//for binary scan
     if (!file) {
-        printf("Failed to open file");
-        exit(1);
+        fprintf(stderr, "Failed to open file: %s\n", filePath);
+        return 0;
     }
 
-    fseek(file, 0, SEEK_END);
-    fileSize = ftell(file);
-    fseek(file, 0, SEEK_SET);
+    if (fseek(file, 0, SEEK_END) != 0) {
+        fclose(file);
+        return 0;
+    }
+
+    fileSizeLong = ftell(file);
+    if (fileSizeLong < 0) {
+        fclose(file);
+        return 0;
+    }
+    fileSize = (size_t)fileSizeLong;
+    rewind(file);
+
+    if (fileSize == 0) {
+        fclose(file);
+        logResult(filePath, CLEAN, EMPTY);
+        return 1;
+    }
 
     buffer = (char*)malloc(fileSize);
     if (!buffer) {
-        printf("Failed to allocate memory for buffer\n");
-        exit(1);
+        fclose(file);
+        fprintf(stderr, "Failed to allocate file buffer\n");
+        return 0;
     }
 
-    size_t bytesRead = fread(buffer, 1, fileSize, file);
-    if (bytesRead != fileSize) {
-        printf("Error reading file\n");
+    if (fread(buffer, 1, fileSize, file) != fileSize) {
         fclose(file);
         free(buffer);
-        exit(1);
+        fprintf(stderr, "Failed to read file: %s\n", filePath);
+        return 0;
     }
-
     fclose(file);
 
-    if (quickScan != 0) {
-        portionSize = fileSize / SMART_CUT;
-        portionSizeLast = MIDDAL_PRES * portionSize;
-        if (checkSignature(buffer, portionSize + signatureSize - 1, virusSignature, signatureSize)) {
+    if (quickScan == 0) {
+        infected = checkSignature(buffer, fileSize, virusSignature, signatureSize);
+        if (infected) {
+            logResult(filePath, INFECTED, EMPTY);
+        }
+    } else {
+        size_t edgeSize = fileSize / 5;
+        if (edgeSize < signatureSize) {
+            edgeSize = fileSize;
+        }
+
+        if (checkSignature(buffer, edgeSize, virusSignature, signatureSize)) {
             infected = 1;
             logResult(filePath, INFECTED, FIRST);
-        }
-        else if (checkSignature(buffer + (fileSize - portionSize), portionSize, virusSignature, signatureSize)) {
+        } else if (edgeSize < fileSize &&
+                   checkSignature(buffer + (fileSize - edgeSize), edgeSize, virusSignature, signatureSize)) {
             infected = 1;
             logResult(filePath, INFECTED, LAST);
-        }
-        else {
-            if (checkSignature(buffer + portionSize, portionSizeLast + signatureSize - 1, virusSignature, signatureSize)) {
+        } else {
+            size_t middleStart = edgeSize;
+            size_t middleSize = fileSize > 2 * edgeSize ? fileSize - 2 * edgeSize : 0;
+            if (checkSignature(buffer + middleStart, middleSize, virusSignature, signatureSize)) {
                 infected = 1;
                 logResult(filePath, INFECTED, EMPTY);
             }
-        }
-    }
-    else {
-        if (checkSignature(buffer, fileSize, virusSignature, signatureSize)) {
-            infected = 1;
-            logResult(filePath, INFECTED, EMPTY);
         }
     }
 
@@ -214,29 +248,22 @@ void scanFile(char* filePath, char* virusSignature, int signatureSize, int quick
     }
 
     free(buffer);
+    return 1;
 }
 
-/*
-func will check the signature of the virus
-input:char* buffer, int bufferSize, char* signature, int signatureSize
-output:int
-*/
-int checkSignature(char* buffer, int bufferSize, char* signature, int signatureSize) {
-    int i = 0, j = 0;
-    bool flag = false;
-    for (i = 0; i <= bufferSize - signatureSize; i++) 
-    {
-        flag = false;
-        for (j = 0; j < signatureSize&&!flag ; j++) 
-        {
-            if (buffer[i + j] != signature[j]) 
-            {
-                flag = true;
-            }
-        }
-        if (j == signatureSize) {
-            return TRUE;
+int checkSignature(const char* buffer, size_t bufferSize, const char* signature, size_t signatureSize)
+{
+    size_t i;
+
+    if (!buffer || !signature || signatureSize == 0 || bufferSize < signatureSize) {
+        return 0;
+    }
+
+    for (i = 0; i <= bufferSize - signatureSize; ++i) {
+        if (memcmp(buffer + i, signature, signatureSize) == 0) {
+            return 1;
         }
     }
-    return FALSE;
+
+    return 0;
 }
