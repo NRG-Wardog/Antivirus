@@ -1,13 +1,11 @@
-## License Agreement
+Copyright (c) 2024 Dorian Salomon. All rights reserved.
 
-This software is the property of its author and is intended for educational and demonstration purposes only. Any unauthorized copying, distribution, modification, or use of this code without explicit permission from the author is strictly prohibited.
+This source code is made publicly available for portfolio review, educational inspection, and demonstration of the author's work.
 
-### Restrictions:
-- This code **may not** be copied, shared, or reused by students of the **Magshimim** program.
-- Commercial or academic use without prior written approval is prohibited.
-- Any violation of these terms may result in legal action.
+No permission is granted to copy, modify, redistribute, sublicense, sell, incorporate into another project, or use this code for commercial or academic submission purposes without prior written permission from the copyright holder.
 
-For permissions or inquiries, please contact the author.
+Academic integrity notice:
+- This repository contains work created in connection with the Magshimim Cyber Security program.
+- Current or future students may not copy, reuse, submit, or adapt this code as coursework or as a solution to related assignments.
 
-© [2024] [Dorian Salomon] – All Rights Reserved.
-
+You may read the source and learn from the engineering concepts demonstrated here. Any use beyond viewing and personal study requires explicit written permission.
